@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { EventProvider } from '@/context/EventContext';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/Header';
+import { ThemeProvider } from '@/context/ThemeContext';
 
 export const metadata: Metadata = {
   title: 'AlbumAce',
@@ -17,7 +18,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -26,16 +27,27 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400..900;1,400..900&family=Belleza&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Playfair+Display:wght@700&family=Fira+Code&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body className={cn('font-body bg-background text-foreground antialiased min-h-screen flex flex-col')}>
-        <EventProvider>
-          <Header />
-          <main className="flex-grow">{children}</main>
-          <Toaster />
-        </EventProvider>
+      <body
+        className={cn(
+          'font-body bg-background text-foreground antialiased min-h-screen flex flex-col'
+        )}
+      >
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <EventProvider>
+            <Header />
+            <main className="flex-grow">{children}</main>
+            <Toaster />
+          </EventProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

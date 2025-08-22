@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Button } from './ui/button';
 import { LayoutGrid, Home } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 export function Header() {
   const pathname = usePathname();
@@ -46,6 +47,7 @@ export function Header() {
               <span className="sr-only">Admin Dashboard</span>
             </Link>
           </Button>
+          <ThemeSwitcher />
         </nav>
       </div>
     </header>
