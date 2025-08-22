@@ -9,14 +9,16 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import type { User } from '@/types';
 import { LogIn } from 'lucide-react';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function JoinEventForm() {
   const [code, setCode] = useState('');
-  const { events, setEvents, currentUser, setCurrentUser, getUniqueId } = useEventContext();
+  const { getEventByCode, updateEvent, currentUser, setCurrentUser, getUniqueId } = useEventContext();
   const router = useRouter();
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const eventCode = code.trim().toUpperCase();
 
@@ -29,7 +31,7 @@ export function JoinEventForm() {
       return;
     }
 
-    const event = events.find((e) => e.code.toUpperCase() === eventCode);
+    const event = await getEventByCode(eventCode);
 
     if (!event) {
       toast({
@@ -52,15 +54,10 @@ export function JoinEventForm() {
 
     // Add user to event members if not already there
     if (userToJoin) {
-        setEvents(prevEvents => prevEvents.map(e => {
-            if (e.code.toUpperCase() === eventCode) {
-                // Check if user is already a member
-                if (!e.members.some(m => m.id === userToJoin!.id)) {
-                    return { ...e, members: [...e.members, userToJoin!] };
-                }
-            }
-            return e;
-        }));
+      if (!event.members.some(m => m.id === userToJoin!.id)) {
+        const updatedMembers = [...event.members, userToJoin];
+        await updateEvent(event.id, { members: updatedMembers });
+      }
     }
 
 

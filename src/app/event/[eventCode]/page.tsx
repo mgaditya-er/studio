@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams } from 'next/navigation';
@@ -11,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function EventPage() {
   const params = useParams();
-  const { events, loading, setEvents } = useEventContext();
+  const { events, loading } = useEventContext();
   const [currentEvent, setCurrentEvent] = useState<Event | null>(null);
   
   const eventCode = params.eventCode as string;
@@ -53,7 +54,7 @@ export default function EventPage() {
         <PhotoUploader eventCode={eventCode} />
       </div>
 
-      <EventSummary event={currentEvent} setEvents={setEvents} />
+      <EventSummary event={currentEvent} />
       <PhotoGrid event={currentEvent} />
     </div>
   );

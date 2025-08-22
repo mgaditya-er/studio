@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -7,15 +8,16 @@ import { summarizeAlbum } from '@/ai/flows/summarize-album';
 import type { Event } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles, Loader2 } from 'lucide-react';
+import { useEventContext } from '@/context/EventContext';
 
 interface EventSummaryProps {
   event: Event;
-  setEvents: React.Dispatch<React.SetStateAction<Event[]>>;
 }
 
-export function EventSummary({ event, setEvents }: EventSummaryProps) {
+export function EventSummary({ event }: EventSummaryProps) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { updateEvent } = useEventContext();
 
   const handleGenerateSummary = async () => {
     if (event.photos.filter(p => !p.processing).length < 3) {
@@ -32,7 +34,7 @@ export function EventSummary({ event, setEvents }: EventSummaryProps) {
       const photoDescriptions = event.photos.map(p => p.caption).filter(c => c !== 'Processing...');
       const result = await summarizeAlbum({ photoDescriptions });
 
-      setEvents(prevEvents => prevEvents.map(e => e.id === event.id ? { ...e, tripStory: result.tripStory, highlights: result.highlights } : e));
+      await updateEvent(event.id, { tripStory: result.tripStory, highlights: result.highlights });
 
       toast({
         title: 'Summary Generated!',

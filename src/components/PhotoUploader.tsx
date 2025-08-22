@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useRef } from 'react';
@@ -14,107 +15,108 @@ interface PhotoUploaderProps {
 }
 
 export function PhotoUploader({ eventCode }: PhotoUploaderProps) {
-  const { setEvents, currentUser } = useEventContext();
+  const { events, updateEvent, currentUser, getUniqueId } = useEventContext();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || !currentUser) return;
+    
+    const event = events.find(e => e.code === eventCode);
+    if (!event) return;
 
     toast({
       title: 'Uploading...',
       description: `${files.length} photo(s) selected. AI processing will begin shortly.`,
     });
 
+    let newPhotos: Photo[] = [];
+
     for (const file of Array.from(files)) {
       const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const photoDataUri = reader.result as string;
-        const photoId = `${new Date().getTime()}_${Math.random()}`;
-        
-        const newPhoto: Photo = {
-          id: photoId,
-          url: photoDataUri,
-          uploaderId: currentUser.id,
-          caption: 'Processing...',
-          themes: [],
-          isLowQuality: false, // AI feature placeholder
-          isDuplicate: false, // AI feature placeholder
-          faces: [], // AI feature placeholder
-          processing: true,
-        };
+      
+      const readPromise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
 
-        setEvents((prev) =>
-          prev.map((event) =>
-            event.code === eventCode
-              ? { ...event, photos: [...event.photos, newPhoto] }
-              : event
-          )
-        );
-
-        // Simulate AI processing
-        setTimeout(async () => {
-          try {
-            const captionResult = await generatePhotoCaption({
-              photoId: photoId,
-              photoDataUri,
-              faces: ["Person A"], // Placeholder
-              activity: "event" // Placeholder
-            });
-
-            const categoryResult = await categorizePhoto({
-              photoDataUri,
-              description: captionResult.caption,
-            });
-
-            setEvents((prev) =>
-              prev.map((event) => {
-                if (event.code === eventCode) {
-                  return {
-                    ...event,
-                    photos: event.photos.map((p) =>
-                      p.id === photoId
-                        ? {
-                            ...p,
-                            caption: captionResult.caption,
-                            themes: categoryResult.themes,
-                            faces: ["Person A"], // Placeholder
-                            processing: false,
-                          }
-                        : p
-                    ),
-                  };
-                }
-                return event;
-              })
-            );
-          } catch(err) {
-            console.error("AI processing failed", err);
-             setEvents((prev) =>
-              prev.map((event) => {
-                if (event.code === eventCode) {
-                  return {
-                    ...event,
-                    photos: event.photos.map((p) =>
-                      p.id === photoId
-                        ? {
-                            ...p,
-                            caption: "AI processing failed.",
-                            processing: false,
-                          }
-                        : p
-                    ),
-                  };
-                }
-                return event;
-              })
-            );
-          }
-        }, 2000);
+      const photoDataUri = await readPromise;
+      const photoId = getUniqueId();
+      
+      const newPhoto: Photo = {
+        id: photoId,
+        url: photoDataUri,
+        uploaderId: currentUser.id,
+        caption: 'Processing...',
+        themes: [],
+        isLowQuality: false,
+        isDuplicate: false,
+        faces: [],
+        processing: true,
       };
+
+      newPhotos.push(newPhoto);
     }
+    
+    // Batch update event with all new photos
+    const updatedPhotos = [...event.photos, ...newPhotos];
+    await updateEvent(event.id, { photos: updatedPhotos });
+
+
+    // Process each new photo
+    newPhotos.forEach(photo => {
+      // No need for setTimeout, just run the async processing
+      (async () => {
+        try {
+          const captionResult = await generatePhotoCaption({
+            photoId: photo.id,
+            photoDataUri: photo.url,
+            faces: ["Person A"], // Placeholder
+            activity: "event" // Placeholder
+          });
+
+          const categoryResult = await categorizePhoto({
+            photoDataUri: photo.url,
+            description: captionResult.caption,
+          });
+
+          // Fetch the latest event data before updating
+          const currentEvent = events.find(e => e.id === event.id);
+          if (currentEvent) {
+             const finalPhotos = currentEvent.photos.map((p) =>
+              p.id === photo.id
+                ? {
+                    ...p,
+                    caption: captionResult.caption,
+                    themes: categoryResult.themes,
+                    faces: ["Person A"], // Placeholder
+                    processing: false,
+                  }
+                : p
+            );
+             await updateEvent(event.id, { photos: finalPhotos });
+          }
+
+        } catch(err) {
+          console.error("AI processing failed", err);
+          const currentEvent = events.find(e => e.id === event.id);
+           if (currentEvent) {
+            const finalPhotos = currentEvent.photos.map((p) =>
+              p.id === photo.id
+                ? {
+                    ...p,
+                    caption: "AI processing failed.",
+                    processing: false,
+                  }
+                : p
+            );
+            await updateEvent(event.id, { photos: finalPhotos });
+          }
+        }
+      })();
+    });
   };
 
   return (
