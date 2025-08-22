@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from 'next/image';
@@ -15,7 +16,7 @@ interface PhotoGridProps {
 export function PhotoGrid({ event }: PhotoGridProps) {
   const { currentUser } = useEventContext();
 
-  const myPhotos = event.photos.filter((p) => p.uploaderId === currentUser?.id);
+  const myPhotos = currentUser ? event.photos.filter((p) => p.uploaderId === currentUser?.id) : [];
 
   return (
     <div className="mt-8">
@@ -46,8 +47,8 @@ export function PhotoGrid({ event }: PhotoGridProps) {
                        </div>
                     )}
                   </CardContent>
-                  <CardFooter className="p-3 flex flex-col items-start">
-                    <p className="text-sm text-foreground italic">"{photo.caption}"</p>
+                  <CardFooter className="p-3 flex flex-col items-start min-h-[100px]">
+                    <p className="text-sm text-foreground italic flex-grow">"{photo.caption}"</p>
                     <div className="flex flex-wrap gap-1 mt-2">
                         {photo.themes.map(theme => (
                             <Badge key={theme} variant="secondary">{theme}</Badge>
@@ -80,8 +81,8 @@ export function PhotoGrid({ event }: PhotoGridProps) {
                        </div>
                     )}
                   </CardContent>
-                  <CardFooter className="p-3 flex flex-col items-start">
-                    <p className="text-sm text-foreground italic">"{photo.caption}"</p>
+                  <CardFooter className="p-3 flex flex-col items-start min-h-[100px]">
+                    <p className="text-sm text-foreground italic flex-grow">"{photo.caption}"</p>
                      <div className="flex flex-wrap gap-1 mt-2">
                         {photo.themes.map(theme => (
                             <Badge key={theme} variant="secondary">{theme}</Badge>

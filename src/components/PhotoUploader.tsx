@@ -75,19 +75,21 @@ export function PhotoUploader({ eventCode, onProgressUpdate }: PhotoUploaderProp
 
     const processingPromises = newPhotos.map(photo => (async () => {
       try {
+        // AI captioning
         const captionResult = await generatePhotoCaption({
           photoId: photo.id,
           photoDataUri: photo.url,
-          faces: ["Person A"], // Placeholder
-          activity: "event" // Placeholder
+          faces: [], // Face detection can be added here in the future
+          activity: event.name 
         });
 
+        // AI Theming
         const categoryResult = await categorizePhoto({
           photoDataUri: photo.url,
           description: captionResult.caption,
         });
 
-        // Fetch the latest event data before updating
+        // Fetch the latest event data before updating to avoid race conditions
         const currentEvent = events.find(e => e.id === event.id);
         if (currentEvent) {
            const finalPhotos = currentEvent.photos.map((p) =>
@@ -96,7 +98,6 @@ export function PhotoUploader({ eventCode, onProgressUpdate }: PhotoUploaderProp
                   ...p,
                   caption: captionResult.caption,
                   themes: categoryResult.themes,
-                  faces: ["Person A"], // Placeholder
                   processing: false,
                 }
               : p
