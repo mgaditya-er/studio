@@ -12,7 +12,7 @@ import { LogIn } from 'lucide-react';
 
 export function JoinEventForm() {
   const [code, setCode] = useState('');
-  const { getEventByCode, updateEvent, currentUser, setCurrentUser, getUniqueId } = useEventContext();
+  const { events, updateEvent, currentUser, setCurrentUser, getUniqueId, getEventByCode } = useEventContext();
   const router = useRouter();
   const { toast } = useToast();
 

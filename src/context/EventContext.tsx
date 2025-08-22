@@ -3,12 +3,9 @@
 
 import type { Event, User } from '@/types';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { db } from '@/lib/firebase';
-import { collection, doc, getDoc, getDocs, onSnapshot, setDoc, query, where } from 'firebase/firestore';
 
 // A simple, consistent unique ID generator
 const getUniqueId = () => `id_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
-
 
 interface EventContextType {
   events: Event[];
@@ -29,49 +26,40 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
 
-
   useEffect(() => {
-    // Load current user from localStorage only on the client
+    // Load state from localStorage only on the client
     try {
-        const storedUser = localStorage.getItem('albumace_currentUser');
-        if (storedUser) {
-            setCurrentUser(JSON.parse(storedUser));
-        }
+      const storedEvents = localStorage.getItem('albumace_events');
+      if (storedEvents) {
+        setEventsState(JSON.parse(storedEvents));
+      }
+      const storedUser = localStorage.getItem('albumace_currentUser');
+      if (storedUser) {
+        setCurrentUser(JSON.parse(storedUser));
+      }
     } catch (error) {
-        console.error('Failed to parse user from localStorage', error);
+      console.error('Failed to parse from localStorage', error);
     }
+    setLoading(false);
     setHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
-
-    const unsubscribe = onSnapshot(collection(db, 'events'), (snapshot) => {
-      const eventsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Event));
-      setEventsState(eventsData);
-      setLoading(false);
-    }, (error) => {
-        console.error("Error fetching events from Firestore:", error);
-        setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [hydrated]);
-
-  useEffect(() => {
-    // Save current user to localStorage
-    if (hydrated && currentUser) {
+    // Save state to localStorage whenever it changes
+    if (hydrated) {
         try {
-            localStorage.setItem('albumace_currentUser', JSON.stringify(currentUser));
+            localStorage.setItem('albumace_events', JSON.stringify(events));
+            if (currentUser) {
+                localStorage.setItem('albumace_currentUser', JSON.stringify(currentUser));
+            }
         } catch (error) {
-            console.error('Failed to save user to localStorage', error);
+            console.error('Failed to save to localStorage', error);
         }
     }
-  }, [currentUser, hydrated]);
+  }, [events, currentUser, hydrated]);
 
   const addEvent = async (eventName: string): Promise<Event> => {
     const generateCode = () => getUniqueId().substring(0, 6).toUpperCase();
-
     const newEvent: Event = {
       id: getUniqueId(),
       name: eventName,
@@ -81,41 +69,25 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
       tripStory: '',
       highlights: [],
     };
-
-    await setDoc(doc(db, "events", newEvent.id), newEvent);
+    setEventsState((prevEvents) => [...prevEvents, newEvent]);
     return newEvent;
   };
 
   const updateEvent = async (eventId: string, eventData: Partial<Event>) => {
-    const eventRef = doc(db, 'events', eventId);
-    try {
-      // Get the latest document before updating to avoid overwriting with stale data
-      const docSnap = await getDoc(eventRef);
-      if (docSnap.exists()) {
-        const existingData = docSnap.data();
-        await setDoc(eventRef, { ...existingData, ...eventData });
-      } else {
-         await setDoc(eventRef, eventData, { merge: true });
-      }
-    } catch (error) {
-      console.error('Failed to update event in Firestore', error);
-    }
+    setEventsState((prevEvents) =>
+      prevEvents.map((event) =>
+        event.id === eventId ? { ...event, ...eventData } : event
+      )
+    );
   };
   
   const getEventByCode = async (code: string): Promise<Event | null> => {
-    const q = query(collection(db, "events"), where("code", "==", code.toUpperCase()));
-    const querySnapshot = await getDocs(q);
-    
-    if (querySnapshot.empty) {
-      return null;
-    }
-
-    const eventDoc = querySnapshot.docs[0];
-    return { id: eventDoc.id, ...eventDoc.data() } as Event;
+    const event = events.find(e => e.code.toUpperCase() === code.toUpperCase());
+    return event || null;
   }
-
+  
   if (!hydrated) {
-      return null;
+    return null; // Render nothing on the server
   }
 
   return (
