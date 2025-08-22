@@ -17,7 +17,7 @@ interface PhotoUploaderProps {
 }
 
 export function PhotoUploader({ eventCode, onProgressUpdate }: PhotoUploaderProps) {
-  const { events, updateEvent, currentUser, getUniqueId } = useEventContext();
+  const { events, updateEvent, currentUser, getUniqueId, getEventByCode } = useEventContext();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -25,7 +25,7 @@ export function PhotoUploader({ eventCode, onProgressUpdate }: PhotoUploaderProp
     const files = e.target.files;
     if (!files || !currentUser) return;
     
-    const event = events.find(e => e.code === eventCode);
+    let event = await getEventByCode(eventCode);
     if (!event) return;
 
     const totalFiles = files.length;
@@ -80,7 +80,7 @@ export function PhotoUploader({ eventCode, onProgressUpdate }: PhotoUploaderProp
           photoId: photo.id,
           photoDataUri: photo.url,
           faces: [], // Face detection can be added here in the future
-          activity: event.name 
+          activity: event!.name 
         });
 
         // AI Theming
@@ -90,7 +90,7 @@ export function PhotoUploader({ eventCode, onProgressUpdate }: PhotoUploaderProp
         });
 
         // Fetch the latest event data before updating to avoid race conditions
-        const currentEvent = events.find(e => e.id === event.id);
+        const currentEvent = await getEventByCode(eventCode);
         if (currentEvent) {
            const finalPhotos = currentEvent.photos.map((p) =>
             p.id === photo.id
@@ -102,11 +102,11 @@ export function PhotoUploader({ eventCode, onProgressUpdate }: PhotoUploaderProp
                 }
               : p
           );
-           await updateEvent(event.id, { photos: finalPhotos });
+           await updateEvent(event!.id, { photos: finalPhotos });
         }
       } catch(err) {
         console.error("AI processing failed", err);
-        const currentEvent = events.find(e => e.id === event.id);
+        const currentEvent = await getEventByCode(eventCode);
          if (currentEvent) {
           const finalPhotos = currentEvent.photos.map((p) =>
             p.id === photo.id
@@ -117,7 +117,7 @@ export function PhotoUploader({ eventCode, onProgressUpdate }: PhotoUploaderProp
                 }
               : p
           );
-          await updateEvent(event.id, { photos: finalPhotos });
+          await updateEvent(event!.id, { photos: finalPhotos });
         }
       } finally {
         processedCount++;
