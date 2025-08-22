@@ -18,7 +18,7 @@ export function JoinEventForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const eventCode = code.trim().toUpperCase();
+    const eventCode = code.trim();
 
     if (!eventCode) {
       toast({
@@ -29,7 +29,7 @@ export function JoinEventForm() {
       return;
     }
 
-    const event = events.find((e) => e.code === eventCode);
+    const event = events.find((e) => e.code.toUpperCase() === eventCode.toUpperCase());
 
     if (!event) {
       toast({
@@ -53,7 +53,7 @@ export function JoinEventForm() {
     // Add user to event members if not already there
     if (userToJoin) {
         setEvents(prevEvents => prevEvents.map(e => {
-            if (e.code === eventCode) {
+            if (e.code.toUpperCase() === eventCode.toUpperCase()) {
                 // Check if user is already a member
                 if (!e.members.some(m => m.id === userToJoin!.id)) {
                     return { ...e, members: [...e.members, userToJoin!] };
@@ -69,7 +69,7 @@ export function JoinEventForm() {
       description: `You have joined the event: ${event.name}`,
     });
 
-    router.push(`/event/${eventCode}`);
+    router.push(`/event/${event.code}`);
   };
 
   return (
