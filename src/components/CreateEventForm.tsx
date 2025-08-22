@@ -18,19 +18,13 @@ import {
 import { QrCode } from './QrCode';
 import { useRouter } from 'next/navigation';
 import { PartyPopper } from 'lucide-react';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 
 export function CreateEventForm() {
   const [eventName, setEventName] = useState('');
-  const { getUniqueId } = useEventContext();
+  const { addEvent } = useEventContext();
   const { toast } = useToast();
   const [createdEvent, setCreatedEvent] = useState<Event | null>(null);
   const router = useRouter();
-
-  const generateCode = () => {
-    return getUniqueId().substring(0, 6).toUpperCase();
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,25 +37,15 @@ export function CreateEventForm() {
       return;
     }
 
-    const newEvent: Event = {
-      id: getUniqueId(),
-      name: eventName,
-      code: generateCode(),
-      members: [],
-      photos: [],
-      tripStory: '',
-      highlights: [],
-    };
-
     try {
-      await setDoc(doc(db, "events", newEvent.id), newEvent);
+      const newEvent = await addEvent(eventName);
       setCreatedEvent(newEvent);
       setEventName('');
     } catch (error) {
        console.error("Failed to create event:", error);
        toast({
         title: 'Error',
-        description: 'Could not create the event in the database.',
+        description: 'Could not create the event.',
         variant: 'destructive',
       });
     }

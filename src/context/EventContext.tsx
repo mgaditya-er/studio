@@ -12,7 +12,7 @@ const getUniqueId = () => `id_${new Date().getTime()}_${Math.random().toString(3
 
 interface EventContextType {
   events: Event[];
-  setEvents: (events: Event[]) => Promise<void>;
+  addEvent: (eventName: string) => Promise<Event>;
   updateEvent: (eventId: string, eventData: Partial<Event>) => Promise<void>;
   currentUser: User | null;
   setCurrentUser: React.Dispatch<React.SetStateAction<User | null>>;
@@ -41,8 +41,11 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
         console.error('Failed to parse user from localStorage', error);
     }
     setHydrated(true);
+  }, []);
 
-    // Subscribe to events collection in Firestore
+  useEffect(() => {
+    if (!hydrated) return;
+
     const unsubscribe = onSnapshot(collection(db, 'events'), (snapshot) => {
       const eventsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Event));
       setEventsState(eventsData);
@@ -53,7 +56,7 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [hydrated]);
 
   useEffect(() => {
     // Save current user to localStorage
@@ -66,17 +69,21 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [currentUser, hydrated]);
 
-  const setEvents = async (newEvents: Event[]) => {
-    try {
-      const batch = writeBatch(db);
-      newEvents.forEach(event => {
-        const eventRef = doc(db, 'events', event.id);
-        batch.set(eventRef, event);
-      });
-      await batch.commit();
-    } catch (error) {
-      console.error('Failed to save events to Firestore', error);
-    }
+  const addEvent = async (eventName: string): Promise<Event> => {
+    const generateCode = () => getUniqueId().substring(0, 6).toUpperCase();
+
+    const newEvent: Event = {
+      id: getUniqueId(),
+      name: eventName,
+      code: generateCode(),
+      members: [],
+      photos: [],
+      tripStory: '',
+      highlights: [],
+    };
+
+    await setDoc(doc(db, "events", newEvent.id), newEvent);
+    return newEvent;
   };
 
   const updateEvent = async (eventId: string, eventData: Partial<Event>) => {
@@ -98,11 +105,11 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
   }
 
   if (!hydrated) {
-      return null; // Or a loading spinner
+      return null;
   }
 
   return (
-    <EventContext.Provider value={{ events, setEvents, updateEvent, currentUser, setCurrentUser, loading, getUniqueId, getEventByCode }}>
+    <EventContext.Provider value={{ events, addEvent, updateEvent, currentUser, setCurrentUser, loading, getUniqueId, getEventByCode }}>
       {children}
     </EventContext.Provider>
   );
