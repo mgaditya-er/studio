@@ -27,9 +27,11 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
   const [events, setEventsState] = useState<Event[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
+
 
   useEffect(() => {
-    // Load current user from localStorage
+    // Load current user from localStorage only on the client
     try {
         const storedUser = localStorage.getItem('albumace_currentUser');
         if (storedUser) {
@@ -38,7 +40,8 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
         console.error('Failed to parse user from localStorage', error);
     }
-    
+    setHydrated(true);
+
     // Subscribe to events collection in Firestore
     const unsubscribe = onSnapshot(collection(db, 'events'), (snapshot) => {
       const eventsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Event));
@@ -54,14 +57,14 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     // Save current user to localStorage
-    if (currentUser) {
+    if (hydrated && currentUser) {
         try {
             localStorage.setItem('albumace_currentUser', JSON.stringify(currentUser));
         } catch (error) {
             console.error('Failed to save user to localStorage', error);
         }
     }
-  }, [currentUser]);
+  }, [currentUser, hydrated]);
 
   const setEvents = async (newEvents: Event[]) => {
     try {
@@ -94,6 +97,9 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
     return matchingEvents.length > 0 ? matchingEvents[0] : null;
   }
 
+  if (!hydrated) {
+      return null; // Or a loading spinner
+  }
 
   return (
     <EventContext.Provider value={{ events, setEvents, updateEvent, currentUser, setCurrentUser, loading, getUniqueId, getEventByCode }}>
