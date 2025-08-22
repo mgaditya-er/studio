@@ -9,7 +9,7 @@ const getUniqueId = () => `id_${new Date().getTime()}_${Math.random().toString(3
 
 interface EventContextType {
   events: Event[];
-  addEvent: (eventName: string) => Promise<Event>;
+  addEvent: (eventName: string, creator: User) => Promise<Event>;
   updateEvent: (eventId: string, eventData: Partial<Event>) => Promise<void>;
   currentUser: User | null;
   setCurrentUser: React.Dispatch<React.SetStateAction<User | null>>;
@@ -24,10 +24,16 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
   const [events, setEventsState] = useState<Event[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Hydration check
   const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
 
   useEffect(() => {
-    // Load state from localStorage only on the client
+    if (!hydrated) return; 
     try {
       const storedEvents = localStorage.getItem('albumace_events');
       if (storedEvents) {
@@ -41,30 +47,29 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
       console.error('Failed to parse from localStorage', error);
     }
     setLoading(false);
-    setHydrated(true);
-  }, []);
+  }, [hydrated]);
 
   useEffect(() => {
-    // Save state to localStorage whenever it changes
-    if (hydrated) {
-        try {
-            localStorage.setItem('albumace_events', JSON.stringify(events));
-            if (currentUser) {
-                localStorage.setItem('albumace_currentUser', JSON.stringify(currentUser));
-            }
-        } catch (error) {
-            console.error('Failed to save to localStorage', error);
+    if (!hydrated || loading) return;
+    try {
+        localStorage.setItem('albumace_events', JSON.stringify(events));
+        if (currentUser) {
+            localStorage.setItem('albumace_currentUser', JSON.stringify(currentUser));
+        } else {
+            localStorage.removeItem('albumace_currentUser');
         }
+    } catch (error) {
+        console.error('Failed to save to localStorage', error);
     }
-  }, [events, currentUser, hydrated]);
+  }, [events, currentUser, hydrated, loading]);
 
-  const addEvent = async (eventName: string): Promise<Event> => {
+  const addEvent = async (eventName: string, creator: User): Promise<Event> => {
     const generateCode = () => getUniqueId().substring(0, 6).toUpperCase();
     const newEvent: Event = {
       id: getUniqueId(),
       name: eventName,
       code: generateCode(),
-      members: [],
+      members: [creator], // Add the creator as the first member
       photos: [],
       tripStory: '',
       highlights: [],
@@ -87,7 +92,7 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
   }
   
   if (!hydrated) {
-    return null; // Render nothing on the server
+    return null; // Don't render on the server
   }
 
   return (
