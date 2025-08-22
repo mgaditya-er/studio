@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { Upload } from 'lucide-react';
 import { useEventContext } from '@/context/EventContext';
@@ -9,12 +9,14 @@ import { useToast } from '@/hooks/use-toast';
 import type { Photo } from '@/types';
 import { generatePhotoCaption } from '@/ai/flows/generate-photo-caption';
 import { categorizePhoto } from '@/ai/flows/categorize-photo';
+import { Progress } from './ui/progress';
 
 interface PhotoUploaderProps {
   eventCode: string;
+  onProgressUpdate: (progress: number | null) => void;
 }
 
-export function PhotoUploader({ eventCode }: PhotoUploaderProps) {
+export function PhotoUploader({ eventCode, onProgressUpdate }: PhotoUploaderProps) {
   const { events, updateEvent, currentUser, getUniqueId } = useEventContext();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -26,17 +28,22 @@ export function PhotoUploader({ eventCode }: PhotoUploaderProps) {
     const event = events.find(e => e.code === eventCode);
     if (!event) return;
 
+    const totalFiles = files.length;
+    if (totalFiles === 0) return;
+
+    onProgressUpdate(0);
+
     toast({
       title: 'Uploading...',
-      description: `${files.length} photo(s) selected. AI processing will begin shortly.`,
+      description: `${totalFiles} photo(s) selected. AI processing will begin shortly.`,
     });
 
     let newPhotos: Photo[] = [];
-
+    
+    // Step 1: Read all files and create placeholder photos
     for (const file of Array.from(files)) {
-      const reader = new FileReader();
-      
       const readPromise = new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
         reader.onerror = reject;
         reader.readAsDataURL(file);
@@ -56,71 +63,76 @@ export function PhotoUploader({ eventCode }: PhotoUploaderProps) {
         faces: [],
         processing: true,
       };
-
       newPhotos.push(newPhoto);
     }
     
-    // Batch update event with all new photos
+    // Step 2: Batch update event with all new photos at once to make them appear instantly
     const updatedPhotos = [...event.photos, ...newPhotos];
     await updateEvent(event.id, { photos: updatedPhotos });
 
+    // Step 3: Process each new photo and update progress
+    let processedCount = 0;
 
-    // Process each new photo
-    newPhotos.forEach(photo => {
-      // No need for setTimeout, just run the async processing
-      (async () => {
-        try {
-          const captionResult = await generatePhotoCaption({
-            photoId: photo.id,
-            photoDataUri: photo.url,
-            faces: ["Person A"], // Placeholder
-            activity: "event" // Placeholder
-          });
+    const processingPromises = newPhotos.map(photo => (async () => {
+      try {
+        const captionResult = await generatePhotoCaption({
+          photoId: photo.id,
+          photoDataUri: photo.url,
+          faces: ["Person A"], // Placeholder
+          activity: "event" // Placeholder
+        });
 
-          const categoryResult = await categorizePhoto({
-            photoDataUri: photo.url,
-            description: captionResult.caption,
-          });
+        const categoryResult = await categorizePhoto({
+          photoDataUri: photo.url,
+          description: captionResult.caption,
+        });
 
-          // Fetch the latest event data before updating
-          const currentEvent = events.find(e => e.id === event.id);
-          if (currentEvent) {
-             const finalPhotos = currentEvent.photos.map((p) =>
-              p.id === photo.id
-                ? {
-                    ...p,
-                    caption: captionResult.caption,
-                    themes: categoryResult.themes,
-                    faces: ["Person A"], // Placeholder
-                    processing: false,
-                  }
-                : p
-            );
-             await updateEvent(event.id, { photos: finalPhotos });
-          }
-
-        } catch(err) {
-          console.error("AI processing failed", err);
-          const currentEvent = events.find(e => e.id === event.id);
-           if (currentEvent) {
-            const finalPhotos = currentEvent.photos.map((p) =>
-              p.id === photo.id
-                ? {
-                    ...p,
-                    caption: "AI processing failed.",
-                    processing: false,
-                  }
-                : p
-            );
-            await updateEvent(event.id, { photos: finalPhotos });
-          }
+        // Fetch the latest event data before updating
+        const currentEvent = events.find(e => e.id === event.id);
+        if (currentEvent) {
+           const finalPhotos = currentEvent.photos.map((p) =>
+            p.id === photo.id
+              ? {
+                  ...p,
+                  caption: captionResult.caption,
+                  themes: categoryResult.themes,
+                  faces: ["Person A"], // Placeholder
+                  processing: false,
+                }
+              : p
+          );
+           await updateEvent(event.id, { photos: finalPhotos });
         }
-      })();
-    });
+      } catch(err) {
+        console.error("AI processing failed", err);
+        const currentEvent = events.find(e => e.id === event.id);
+         if (currentEvent) {
+          const finalPhotos = currentEvent.photos.map((p) =>
+            p.id === photo.id
+              ? {
+                  ...p,
+                  caption: "AI processing failed.",
+                  processing: false,
+                }
+              : p
+          );
+          await updateEvent(event.id, { photos: finalPhotos });
+        }
+      } finally {
+        processedCount++;
+        const progress = (processedCount / totalFiles) * 100;
+        onProgressUpdate(progress);
+      }
+    })());
+    
+    await Promise.all(processingPromises);
+
+    // Reset progress when done
+    setTimeout(() => onProgressUpdate(null), 2000);
   };
 
   return (
-    <div>
+    <div className="flex-shrink-0">
       <input
         type="file"
         ref={fileInputRef}
