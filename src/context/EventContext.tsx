@@ -4,7 +4,7 @@
 import type { Event, User } from '@/types';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, doc, getDoc, getDocs, onSnapshot, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, onSnapshot, setDoc, query, where } from 'firebase/firestore';
 
 // A simple, consistent unique ID generator
 const getUniqueId = () => `id_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -89,19 +89,29 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
   const updateEvent = async (eventId: string, eventData: Partial<Event>) => {
     const eventRef = doc(db, 'events', eventId);
     try {
-      await setDoc(eventRef, eventData, { merge: true });
+      // Get the latest document before updating to avoid overwriting with stale data
+      const docSnap = await getDoc(eventRef);
+      if (docSnap.exists()) {
+        const existingData = docSnap.data();
+        await setDoc(eventRef, { ...existingData, ...eventData });
+      } else {
+         await setDoc(eventRef, eventData, { merge: true });
+      }
     } catch (error) {
       console.error('Failed to update event in Firestore', error);
     }
   };
   
   const getEventByCode = async (code: string): Promise<Event | null> => {
-    const querySnapshot = await getDocs(collection(db, "events"));
-    const matchingEvents = querySnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as Event))
-        .filter(event => event.code.toUpperCase() === code.toUpperCase());
+    const q = query(collection(db, "events"), where("code", "==", code.toUpperCase()));
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      return null;
+    }
 
-    return matchingEvents.length > 0 ? matchingEvents[0] : null;
+    const eventDoc = querySnapshot.docs[0];
+    return { id: eventDoc.id, ...eventDoc.data() } as Event;
   }
 
   if (!hydrated) {

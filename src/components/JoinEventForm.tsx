@@ -9,8 +9,6 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import type { User } from '@/types';
 import { LogIn } from 'lucide-react';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 
 export function JoinEventForm() {
   const [code, setCode] = useState('');
