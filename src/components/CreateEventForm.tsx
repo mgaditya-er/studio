@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -33,8 +34,8 @@ export function CreateEventForm() {
     e.preventDefault();
     if (!eventName.trim()) {
       toast({
-        title: 'Error',
-        description: 'Please enter an event name.',
+        title: 'Event Name Required',
+        description: 'Please enter a name for your event.',
         variant: 'destructive',
       });
       return;
