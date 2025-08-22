@@ -24,6 +24,7 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     try {
@@ -39,32 +40,33 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
       console.error('Failed to parse from localStorage', error);
     } finally {
       setLoading(false);
+      setHydrated(true);
     }
   }, []);
 
   useEffect(() => {
-    if (!loading) {
+    if (!loading && hydrated) {
       try {
         localStorage.setItem('albumace_events', JSON.stringify(events));
       } catch (error) {
         console.error('Failed to save events to localStorage', error);
       }
     }
-  }, [events, loading]);
+  }, [events, loading, hydrated]);
 
   useEffect(() => {
-    if (!loading) {
+    if (!loading && hydrated) {
       try {
         localStorage.setItem('albumace_currentUser', JSON.stringify(currentUser));
       } catch (error) {
         console.error('Failed to save user to localStorage', error);
       }
     }
-  }, [currentUser, loading]);
+  }, [currentUser, loading, hydrated]);
 
   return (
     <EventContext.Provider value={{ events, setEvents, currentUser, setCurrentUser, loading, getUniqueId }}>
-      {children}
+      {hydrated ? children : null}
     </EventContext.Provider>
   );
 };
