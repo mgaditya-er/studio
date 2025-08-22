@@ -21,13 +21,13 @@ import { PartyPopper } from 'lucide-react';
 
 export function CreateEventForm() {
   const [eventName, setEventName] = useState('');
-  const { setEvents } = useEventContext();
+  const { setEvents, getUniqueId } = useEventContext();
   const { toast } = useToast();
   const [createdEvent, setCreatedEvent] = useState<Event | null>(null);
   const router = useRouter();
 
   const generateCode = () => {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
+    return getUniqueId().substring(0, 6).toUpperCase();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -42,7 +42,7 @@ export function CreateEventForm() {
     }
 
     const newEvent: Event = {
-      id: new Date().toISOString(),
+      id: getUniqueId(),
       name: eventName,
       code: generateCode(),
       members: [],

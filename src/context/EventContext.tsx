@@ -1,7 +1,13 @@
+
 'use client';
 
 import type { Event, User } from '@/types';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
+// A simple, consistent unique ID generator
+let idCounter = 0;
+const getUniqueId = () => `id_${new Date().getTime()}_${idCounter++}`;
+
 
 interface EventContextType {
   events: Event[];
@@ -9,6 +15,7 @@ interface EventContextType {
   currentUser: User | null;
   setCurrentUser: React.Dispatch<React.SetStateAction<User | null>>;
   loading: boolean;
+  getUniqueId: () => string;
 }
 
 const EventContext = createContext<EventContextType | undefined>(undefined);
@@ -56,7 +63,7 @@ export const EventProvider = ({ children }: { children: ReactNode }) => {
   }, [currentUser, loading]);
 
   return (
-    <EventContext.Provider value={{ events, setEvents, currentUser, setCurrentUser, loading }}>
+    <EventContext.Provider value={{ events, setEvents, currentUser, setCurrentUser, loading, getUniqueId }}>
       {children}
     </EventContext.Provider>
   );

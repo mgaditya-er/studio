@@ -12,13 +12,13 @@ import { LogIn } from 'lucide-react';
 
 export function JoinEventForm() {
   const [code, setCode] = useState('');
-  const { events, setEvents, currentUser, setCurrentUser } = useEventContext();
+  const { events, setEvents, currentUser, setCurrentUser, getUniqueId } = useEventContext();
   const router = useRouter();
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const eventCode = code.trim();
+    const eventCode = code.trim().toUpperCase();
 
     if (!eventCode) {
       toast({
@@ -29,7 +29,7 @@ export function JoinEventForm() {
       return;
     }
 
-    const event = events.find((e) => e.code.toUpperCase() === eventCode.toUpperCase());
+    const event = events.find((e) => e.code.toUpperCase() === eventCode);
 
     if (!event) {
       toast({
@@ -44,8 +44,8 @@ export function JoinEventForm() {
     let userToJoin = currentUser;
     if (!userToJoin) {
       userToJoin = {
-          id: `user_${new Date().getTime()}`,
-          name: `User ${Math.floor(Math.random() * 1000)}`,
+          id: getUniqueId(),
+          name: `User ${getUniqueId().substring(0, 4)}`,
       };
       setCurrentUser(userToJoin);
     }
@@ -53,7 +53,7 @@ export function JoinEventForm() {
     // Add user to event members if not already there
     if (userToJoin) {
         setEvents(prevEvents => prevEvents.map(e => {
-            if (e.code.toUpperCase() === eventCode.toUpperCase()) {
+            if (e.code.toUpperCase() === eventCode) {
                 // Check if user is already a member
                 if (!e.members.some(m => m.id === userToJoin!.id)) {
                     return { ...e, members: [...e.members, userToJoin!] };
